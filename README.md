@@ -73,16 +73,15 @@ MAI-UI establishes new state-of-the-art across GUI grounding and mobile navigati
 
 ## 🎥 Demo
 
-### Demo 1 - Living Scenario
+### Demo 1 - Daily Life Scenario
 
 Trigger `ask_user` for more information to complete the task.
 
 <table align="center">
   <tr>
     <td align="center">
-      <img src="./assets/gif/living.gif" height="400" alt="Living Demo"/>
-      <br/><b>Living Demo</b>
-      <br/><a href="./assets/video/living.mp4">📹 Download original video</a>
+      <img src="./assets/gif/living.gif" height="400" alt="Daily Life Demo"/>
+      <br/><b>Daily Life Demo</b>
     </td>
   </tr>
 </table>
@@ -96,7 +95,6 @@ Use `mcp_call` to invoke AMap tools for navigation.
     <td align="center">
       <img src="./assets/gif/navigation.gif" height="400" alt="Navigation Demo"/>
       <br/><b>Navigation Demo</b>
-      <br/><a href="./assets/video/navigation.mp4">📹 Download original video</a>
     </td>
   </tr>
 </table>
@@ -110,7 +108,6 @@ Use `mcp_call` to invoke AMap tools for navigation.
     <td align="center">
       <img src="./assets/gif/shopping.gif" height="400" alt="Shopping Demo"/>
       <br/><b>Shopping Demo</b>
-      <br/><a href="./assets/video/shopping.mp4">📹 Download original video</a>
     </td>
   </tr>
 </table>
@@ -124,7 +121,6 @@ Cross-apps collaboration to complete the task.
     <td align="center">
       <img src="./assets/gif/work.gif" height="400" alt="Work Demo"/>
       <br/><b>Work Demo</b>
-      <br/><a href="./assets/video/work.mp4">📹 Download original video</a>
     </td>
   </tr>
 </table>
@@ -138,7 +134,6 @@ Device-cloud collaboration for simple tasks, no need cloud model invocation.
     <td align="center">
       <img src="./assets/gif/dcc_simple_task.gif" height="400" alt="Device-cloud Collaboration Demo"/>
       <br/><b>Device-cloud Collaboration Demo</b>
-      <br/><a href="./assets/video/dcc_simple_task.mp4">📹 Download original video</a>
     </td>
   </tr>
 </table>
@@ -152,7 +147,6 @@ Device-cloud collaboration for complex tasks, requiring cloud model invocation w
     <td align="center">
       <img src="./assets/gif/dcc_complex_task.gif" height="400" alt="Device-cloud Collaboration Demo"/>
       <br/><b>Device-cloud Collaboration Demo</b>
-      <br/><a href="./assets/video/dcc_complex_task.mp4">📹 Download original video</a>
     </td>
   </tr>
 </table>
