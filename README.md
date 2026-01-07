@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2512.22047"><img src="https://img.shields.io/badge/📄%20arXiv-Paper-red" alt="arXiv" /></a>
-  <a href="https://tongyi-mai.github.io/MAI-UI//"><img src="https://img.shields.io/badge/🌐%20Website-MAI%20UI-blue" alt="Website" /></a>
+  <a href="https://tongyi-mai.github.io/MAI-UI-blog/"><img src="https://img.shields.io/badge/🌐%20Website-MAI%20UI-blue" alt="Website" /></a>
   <a href="https://tongyi-mai.github.io/MobileWorld/"><img src="https://img.shields.io/badge/🌐%20Website-MobileWorld-blue" alt="Website" /></a>
   <a href="https://huggingface.co/Tongyi-MAI"><img src="https://img.shields.io/badge/🤗%20Hugging%20Face-Model-orange" alt="Hugging Face Model" /></a>
 </p>
