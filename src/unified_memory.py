@@ -49,6 +49,8 @@ class TrajStep:
     model_name: str
     screenshot_bytes: Optional[bytes] = None
     structured_action: Optional[Dict[str, Any]] = None
+    ask_user_response: Optional[str] = None
+    mcp_response: Optional[str] = None
 
 
 @dataclass

@@ -168,7 +168,7 @@ class MAIUINaivigationAgent(BaseAgent):
         llm_base_url: str,
         model_name: str,
         runtime_conf: Optional[Dict[str, Any]] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        mcp_tools: Optional[List[Dict[str, Any]]] = None,
     ):
         """
         Initialize the MAIMobileAgent.
@@ -190,7 +190,7 @@ class MAIUINaivigationAgent(BaseAgent):
         super().__init__()
         
         # Store MCP tools
-        self.tools = tools or []
+        self.mcp_tools = mcp_tools or []
 
         # Set default configuration
         default_conf = {
@@ -224,11 +224,11 @@ class MAIUINaivigationAgent(BaseAgent):
         Returns:
             System prompt string, with MCP tools section if tools are configured.
         """
-        if self.tools:
-            tools_str = "\n".join(
-                [json.dumps(tool, ensure_ascii=False) for tool in self.tools]
+        if self.mcp_tools:
+            mcp_tools_str = "\n".join(
+                [json.dumps(tool, ensure_ascii=False) for tool in self.mcp_tools]
             )
-            return MAI_MOBILE_SYS_PROMPT_ASK_USER_MCP.render(tools=tools_str)
+            return MAI_MOBILE_SYS_PROMPT_ASK_USER_MCP.render(tools=mcp_tools_str)
         return MAI_MOBILE_SYS_PROMPT
 
     @property
@@ -276,6 +276,44 @@ class MAIUINaivigationAgent(BaseAgent):
             )
 
         return history_responses
+
+    def mem2response(self, step: TrajStep) -> str:
+        thinking = step.thought
+        structured_action = step.structured_action
+
+        if not structured_action:
+            raise ValueError("No structured action found")
+
+        action_json = copy.deepcopy(structured_action.get("action_json", {}))
+
+        # Convert normalized coordinates back to SCALE_FACTOR range
+        if "coordinate" in action_json:
+            coordinates = action_json.get("coordinate", [])
+            if len(coordinates) == 2:
+                point_x, point_y = coordinates
+            elif len(coordinates) == 4:
+                x1, y1, x2, y2 = coordinates
+                point_x = (x1 + x2) / 2
+                point_y = (y1 + y2) / 2
+            else:
+                raise ValueError(f"Invalid coordinate format: expected 2 or 4 values, got {len(coordinates)}")
+            action_json["coordinate"] = [
+                int(point_x * SCALE_FACTOR),
+                int(point_y * SCALE_FACTOR),
+            ]
+
+        tool_call_dict = {
+            "name": "mobile_use",
+            "arguments": action_json,
+        }
+        tool_call_json = json.dumps(tool_call_dict, separators=(",", ":"))
+        return f"<thinking>\n{thinking}\n</thinking>\n<tool_call>\n{tool_call_json}\n</tool_call>"
+
+    def mem2ask_user_response(self, step: TrajStep) -> str:
+        return step.ask_user_response
+
+    def mem2mcp_response(self, step: TrajStep) -> str:
+        return step.mcp_response
 
     def _prepare_images(self, screenshot_bytes: bytes) -> List[Image.Image]:
         """
@@ -333,7 +371,6 @@ class MAIUINaivigationAgent(BaseAgent):
         Args:
             instruction: Task instruction from user.
             images: List of prepared images.
-
         Returns:
             List of message dictionaries for the API.
         """
@@ -349,13 +386,13 @@ class MAIUINaivigationAgent(BaseAgent):
         ]
 
         image_num = 0
-        history_responses = self.history_responses
+        # history_responses = self.history_responses
 
-        if len(history_responses) > 0:
+        if len(self.traj_memory.steps) > 0:
             # Only the last (history_n - 1) history responses need images,
-            start_image_idx = max(0, len(history_responses) - (self.history_n - 1))
+            start_image_idx = max(0, len(self.traj_memory.steps) - (self.history_n - 1))
             
-            for history_idx, history_response in enumerate(history_responses):
+            for history_idx, step in enumerate(self.traj_memory.steps):
                 # Only include images for the last (history_n - 1) history responses
                 should_include_image = (history_idx >= start_image_idx)
                 
@@ -374,10 +411,25 @@ class MAIUINaivigationAgent(BaseAgent):
                     image_num += 1
                 
                 # Always add the assistant response (regardless of whether an image is included)
+                history_response = self.mem2response(step)
                 messages.append({
                     "role": "assistant",
                     "content": [{"type": "text", "text": history_response}],
                 })
+
+                # Add ask_user_response or mcp_response if present
+                ask_user_response = self.mem2ask_user_response(step)
+                if ask_user_response:
+                    messages.append({
+                        "role": "user",
+                        "content": [{"type": "text", "text": ask_user_response}],
+                    })
+                mcp_response = self.mem2mcp_response(step)
+                if mcp_response:
+                    messages.append({
+                        "role": "user",
+                        "content": [{"type": "text", "text": mcp_response}],
+                    })
 
             # Add current image (last one in images list)
             if image_num < len(images):
@@ -417,10 +469,8 @@ class MAIUINaivigationAgent(BaseAgent):
             instruction: Task instruction/goal.
             obs: Current observation containing:
                 - screenshot: PIL Image or bytes of current screen
-                - accessibility_tree: Optional accessibility tree data
-            **kwargs: Additional arguments including:
-                - extra_info: Optional extra context string
-
+                - ask_user_response: Optional response from asking user
+                - mcp_response: Optional response from MCP tools
         Returns:
             Tuple of (prediction_text, action_dict) where:
                 - prediction_text: Raw model response or error message
