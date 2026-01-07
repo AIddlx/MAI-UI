@@ -2,8 +2,6 @@
   <img src="./assets/img/MAI-UI-title.png" alt="MAI-UI" />
 </p>
 
-> MAI-UI Technical Report: Real-World Centric Foundation GUI Agents.
-
 <p align="center">
   <a href="https://arxiv.org/abs/2512.22047"><img src="https://img.shields.io/badge/📄%20arXiv-Paper-red" alt="arXiv" /></a>
   <a href="https://tongyi-mai.github.io/MAI-UI//"><img src="https://img.shields.io/badge/🌐%20Website-Project%20Page-blue" alt="Website" /></a>
