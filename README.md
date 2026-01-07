@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/img/MAI-UI-title.png" alt="MAI-UI" />
+  <img src="./assets/img/mai_title_v1.png" alt="MAI-UI" />
 </p>
 
 <p align="center">
@@ -9,29 +9,30 @@
   <a href="https://huggingface.co/Tongyi-MAI"><img src="https://img.shields.io/badge/🤗%20Hugging%20Face-Model-orange" alt="Hugging Face Model" /></a>
 </p>
 
-![Overview PDF](./assets/img/overview.png)
+We present **MAI-UI**, a family of foundation GUI agents spanning the full spectrum of sizes, including **2B**, **8B**, **32B**, and **235B-A22B** variants. Our core contribution includes:
+- **🔧 Agent-user interaction and MCP augmentation**: enabling agent to interact with user and use MCP tools to complete the task.
+- **☁️ Device–cloud collaboration system**: dynamically selecting on-device or cloud execution based on task execution state and data sensitivity.
+- **📈 Dynamic RL Scaling**: large-scale reinforcement learning with scaling parallel environments (up to **512**) and context length (up to **50**).
 
+<p align="center">
+  <img src="./assets/img/overview.png" alt="Overview" width="800">
+  <br>
+  <em>Overview of MAI-UI performance</em>
+</p>
 
 ## 📰 News
 
-* 🎁 **[2025-12-29]** We release MAI-UI Technical Report on [arXiv](https://arxiv.org/abs/2512.22047)!
-* 🎁 **[2025-12-29]** Initial release of [MAI-UI-8B](https://huggingface.co/Tongyi-MAI/MAI-UI-8B) and [MAI-UI-2B](https://huggingface.co/Tongyi-MAI/MAI-UI-2B) models on Hugging Face.
+* **[2025-12-29]** 🏆 **State-of-the-Art Performance**: MAI-UI achieves a 41.7% success rate on the [MobileWorld](https://tongyi-mai.github.io/MobileWorld/#leaderboard) benchmark, setting a new record for end-to-end model performance!
+* **[2025-12-29]** 📄 **Technical Report & Website**: Our technical report is now available on [arXiv](https://arxiv.org/abs/2512.22047), and the official project [website](https://tongyi-mai.github.io/MAI-UI/) is live.
+* **[2025-12-29]** 🤗 **Model Release**: We are excited to release the weights for **MAI-UI-8B** and **MAI-UI-2B** on Hugging Face.
 
 ## 📑 Table of Contents
 
-- [📖 Background](#-background)
 - [🎥 Demo](#-demo)
 - [🚀 Quick Start](#-installation--quick-start)
 - [📝 Citation](#-citation)
 - [📧 Contact](#-contact)
 - [📄 License](#-license)
-
-## 📖 Background
-
-In this project, we present MAI-UI, a family of foundation GUI agents spanning the full spectrum of sizes, including **2B**, **8B**, **32B**, and **235B-A22B** variants. Our contribution includes:
-- **Agent-user interaction and MCP augmentation**: enabling agent to interact with user and use MCP tools to complete the task.
-- **Device–cloud collaboration system**: dynamically selecting on-device or cloud execution based on task execution state and data sensitivity.
-- **Reinforcement learning in dynamic environments**: scaling RL training parallel environments (up to **512**) and context length (up to **50**).
 
 
 <!-- 
