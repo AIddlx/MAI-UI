@@ -23,7 +23,8 @@ We present **MAI-UI**, a family of GUI agent foundation models spanning the full
 </p>
 
 ## 📰 News
-* **[2026-01-15]** 🥇 MAI-UI achieved 1st place in the pure-vision, end-to-end model category on the [AndroidWorld Leaderboard](https://docs.google.com/spreadsheets/d/1cchzP9dlTZ3WXQTfYNhh3avxoLipqHN75v1Tb86uhHo/edit?gid=0#gid=0).
+* **[2026-01-15]** 🥇 **New Record on AndroidWorld**: MAI-UI-235B takes #1 on the [AndroidWorld Leaderboard](https://docs.google.com/spreadsheets/d/1cchzP9dlTZ3WXQTfYNhh3avxoLipqHN75v1Tb86uhHo/edit?gid=0#gid=0) for pure-vision, end-to-end models with a 76.7% success rate.
+* **[2026-01-13]** 🥇 **MAI-UI Sweeps ScreenSpot-Pro**: MAI-UI (32B, 8B, 2B) now ranks #1 in all size categories on the [ScreenSpot-Pro leaderboard](https://gui-agent.github.io/grounding-leaderboard/). We achieved record scores of 67.9%, 65.7%, and 57.4% respectively—notably reaching these benchmarks **without any zoom-in tricks**.
 * **[2026-01-04]** 🤝 We're Hiring! We're actively looking for Research Scientists, Engineers, and Interns to work on foundational GUI agents and their applications. Interested candidates please send your resume to: yue.w@alibaba-inc.com
 * **[2025-12-29]** 🏆 **New Leaderboard Record**: MAI-UI achieves a 41.7% success rate on the [MobileWorld](https://tongyi-mai.github.io/MobileWorld/#leaderboard) benchmark, setting a new record for end-to-end model performance!
 * **[2025-12-29]** 📄 **Technical Report & Website**: Our technical report is now available on [arXiv](https://arxiv.org/abs/2512.22047), and the official project [website](https://tongyi-mai.github.io/MAI-UI-blog/) is live.
