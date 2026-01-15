@@ -142,6 +142,38 @@ def parse_action_to_structure_output(text: str) -> Dict[str, Any]:
         point_x = point_x / SCALE_FACTOR
         point_y = point_y / SCALE_FACTOR
         action["coordinate"] = [point_x, point_y]
+    
+    if "start_coordinate" in action:
+        coordinates = action["start_coordinate"]
+        if len(coordinates) == 2:
+            point_x, point_y = coordinates
+        elif len(coordinates) == 4:
+            x1, y1, x2, y2 = coordinates
+            point_x = (x1 + x2) / 2
+            point_y = (y1 + y2) / 2
+        else:
+            raise ValueError(
+                f"Invalid coordinate format: expected 2 or 4 values, got {len(coordinates)}"
+            )
+        point_x = point_x / SCALE_FACTOR
+        point_y = point_y / SCALE_FACTOR
+        action["start_coordinate"] = [point_x, point_y]
+    
+    if "end_coordinate" in action:
+        coordinates = action["end_coordinate"]
+        if len(coordinates) == 2:
+            point_x, point_y = coordinates
+        elif len(coordinates) == 4:
+            x1, y1, x2, y2 = coordinates
+            point_x = (x1 + x2) / 2
+            point_y = (y1 + y2) / 2
+        else:
+            raise ValueError(
+                f"Invalid coordinate format: expected 2 or 4 values, got {len(coordinates)}"
+            )
+        point_x = point_x / SCALE_FACTOR
+        point_y = point_y / SCALE_FACTOR
+        action["end_coordinate"] = [point_x, point_y]
 
     return {
         "thinking": thinking,
