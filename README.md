@@ -123,6 +123,6 @@ python src\mai_desktop_http_mcp_server.py
 
 ## 加入交流群
 
-扫码加入微信群交流：
+扫码加入 QQ 群交流：
 
-![群聊二维码](assets/img/qrcode_1770133173054.jpg)
+![QQ群二维码](assets/img/qrcode_1770133173054.jpg)
