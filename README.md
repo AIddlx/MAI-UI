@@ -118,3 +118,11 @@ python src\mai_desktop_http_mcp_server.py
 - [单步代理指南](docs/oneshot_agent_guide.md)
 - [完整代理指南](docs/desktop_agent_full_guide.md)
 - [MCP 服务器指南](docs/mcp_server_guide.md)
+
+---
+
+## 加入交流群
+
+扫码加入微信群交流：
+
+![群聊二维码](assets/img/qrcode_1770133173054.jpg)
