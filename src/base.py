@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base agent class for mobile GUI automation agents."""
+"""Base agent class for desktop GUI automation agents."""
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple

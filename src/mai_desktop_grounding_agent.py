@@ -12,10 +12,10 @@
 # limitations under the License.
 
 """
-MAI Grounding Agent - A GUI grounding agent for locating UI elements.
+MAI Desktop Grounding Agent - A GUI grounding agent for locating desktop UI elements.
 
-This module provides the MAIGroundingAgent class that uses vision-language models
-to locate UI elements based on natural language instructions.
+This module provides the MAIDesktopGroundingAgent class that uses vision-language models
+to locate UI elements on Windows desktop based on natural language instructions.
 """
 
 import json
@@ -26,7 +26,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 from openai import OpenAI
 from PIL import Image
 
-from prompt import MAI_MOBILE_SYS_PROMPT_GROUNDING
+from prompt import MAI_DESKTOP_SYS_PROMPT_GROUNDING
 from utils import pil_to_base64, safe_pil_to_bytes
 
 
@@ -85,12 +85,12 @@ def parse_grounding_response(text: str) -> Dict[str, Any]:
     return result
 
 
-class MAIGroundingAgent:
+class MAIDesktopGroundingAgent:
     """
-    GUI grounding agent using vision-language models.
+    Desktop GUI grounding agent using vision-language models.
 
     This agent processes a screenshot and natural language instruction to
-    locate a specific UI element and return its coordinates.
+    locate a specific UI element on Windows desktop and return its coordinates.
 
     Attributes:
         llm_base_url: Base URL for the LLM API endpoint.
@@ -105,7 +105,7 @@ class MAIGroundingAgent:
         runtime_conf: Optional[Dict[str, Any]] = None,
     ):
         """
-        Initialize the MAIGroundingAgent.
+        Initialize the MAIDesktopGroundingAgent.
 
         Args:
             llm_base_url: Base URL for the LLM API endpoint.
@@ -143,7 +143,7 @@ class MAIGroundingAgent:
     @property
     def system_prompt(self) -> str:
         """Return the system prompt for grounding tasks."""
-        return MAI_MOBILE_SYS_PROMPT_GROUNDING
+        return MAI_DESKTOP_SYS_PROMPT_GROUNDING
 
     def _build_messages(
         self,

@@ -78,3 +78,24 @@ logs/
 # Local configuration
 .env.local
 config.local.py
+
+# Claude local settings (should NOT be in public repo)
+.claude/
+
+# Docs - keep specific files, ignore rest
+docs/*.md
+!docs/setup_and_test.md
+!docs/oneshot_agent_guide.md
+!docs/desktop_agent_full_guide.md
+!docs/mcp_server_guide.md
+
+# Screenshots - temporary debug files
+screenshots/
+
+# Temporary fix/test scripts
+temp_*.py
+fix_*.py
+test_regex.py
+
+# Test output files
+tests/output_messages/

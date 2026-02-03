@@ -170,45 +170,72 @@ git clone https://github.com/Tongyi-MAI/MAI-UI.git
 cd MAI-UI
 ```
 
-### Step 2: Start Model API Service with vLLM
+### Step 2: 启动模型服务（使用 LM Studio）
 
-Download the model from HuggingFace and deploy the API service using vLLM:
+1. **下载 LM Studio**: 访问 [lmstudio.ai](https://lmstudio.ai/)
 
-HuggingFace model path:  
-- [MAI-UI-2B](https://huggingface.co/Tongyi-MAI/MAI-UI-2B)
-- [MAI-UI-8B](https://huggingface.co/Tongyi-MAI/MAI-UI-8B)
+2. **下载模型**: 在 LM Studio 中搜索并下载 `MAI-UI` 模型
+   - 推荐模型：`MAI-UI-8B` 或 `MAI-UI-2B`
 
-Deploy the model using vLLM:
+3. **启动服务**:
+   - 选择下载的模型
+   - 点击 **Server** 按钮
+   - 确认端口为 `1234`
+   - 点击 **Start Server**
 
-```bash
-# Install vLLM
-pip install vllm  # vllm>=0.11.0 and transformers>=4.57.0
+> 💡 **服务地址**: `http://localhost:1234/v1`
 
-# Start vLLM API server (replace MODEL_PATH with your local model path or HuggingFace model ID)
-python -m vllm.entrypoints.openai.api_server \
-    --model <huggingface_model_path> \
-    --served-model-name MAI-UI-8B \
-    --host 0.0.0.0 \
-    --port 8000 \
-    --tensor-parallel-size 1 \
-    --trust-remote-code
-```
-
-> 💡 **Tips:**
-> - Adjust `--tensor-parallel-size` based on your GPU count for multi-GPU inference
-> - The model will be served at `http://localhost:8000/v1`
-
-### Step 3: Install Dependencies
+### Step 3: 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 4: Run cookbook notebooks
+### Step 4: 运行桌面自动化
 
-We provide two notebooks in the `cookbook/` directory:
+我们提供三种方式在 Windows 上运行桌面自动化：
 
-#### 4.1 Grounding Demo
+#### 4.1 单步代理（简单单动作）
+
+交互式单动作自动化，适合快速任务：
+
+```bash
+cd examples
+python oneshot_agent_example.py
+```
+
+**功能**: 每条指令执行一个动作，无历史记录。
+
+📖 [完整指南](docs/oneshot_agent_guide.md)
+
+#### 4.2 完整导航代理（多步有状态）
+
+完整的自动化方案，包含历史跟踪和反馈机制：
+
+```bash
+cd examples
+python desktop_agent_full_example.py
+```
+
+**功能**: 自动多步执行、历史管理、执行反馈。
+
+📖 [完整指南](docs/desktop_agent_full_guide.md)
+
+#### 4.3 HTTP MCP 服务器（服务模式）
+
+作为 HTTP MCP 服务器运行，可集成到 Claude Desktop 等 MCP 客户端：
+
+```bash
+python src/mai_desktop_http_mcp_server.py --host 127.0.0.1 --port 3359
+```
+
+**功能**: MCP 协议支持、真实动作执行、HTTP/JSON-RPC 接口。
+
+📖 [完整指南](docs/mcp_server_guide.md)
+
+---
+
+### Step 5: 运行 notebook 示例
 
 The `grounding.ipynb` demonstrates how to use the MAI Grounding Agent to locate UI elements:
 
@@ -221,8 +248,8 @@ Before running, update the API endpoint in the notebook:
 
 ```python
 agent = MAIGroundingAgent(
-    llm_base_url="http://localhost:8000/v1",  # Update to your vLLM server address
-    model_name="MAI-UI-8B",                   # Use the served model name
+    llm_base_url="http://localhost:1234/v1",  # LM Studio 默认地址
+    model_name="mai-ui",                       # LM Studio 中的模型名
     runtime_conf={
         "history_n": 3,
         "temperature": 0.0,
@@ -246,8 +273,8 @@ Similarly, update the API endpoint configuration:
 
 ```python
 agent = MAIUINaivigationAgent(
-    llm_base_url="http://localhost:8000/v1",  # Update to your vLLM server address
-    model_name="MAI-UI-8B",                   # Use the served model name
+    llm_base_url="http://localhost:1234/v1",  # LM Studio 默认地址
+    model_name="mai-ui",                       # LM Studio 中的模型名
     runtime_conf={
         "history_n": 3,
         "temperature": 0.0,

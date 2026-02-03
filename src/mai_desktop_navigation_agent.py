@@ -12,10 +12,10 @@
 # limitations under the License.
 
 """
-MAI Mobile Agent - A GUI automation agent for mobile devices.
+MAI Desktop Agent - A GUI automation agent for Windows desktop environments.
 
-This module provides the MAIMobileAgent class that uses vision-language models
-to interact with mobile device interfaces based on natural language instructions.
+This module provides the MAIDesktopNavigationAgent class that uses vision-language models
+to interact with desktop interfaces based on natural language instructions.
 """
 
 import copy
@@ -23,6 +23,7 @@ import json
 import re
 import traceback
 from io import BytesIO
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -30,7 +31,12 @@ from openai import OpenAI
 from PIL import Image
 
 from base import BaseAgent
-from prompt import MAI_MOBILE_SYS_PROMPT, MAI_MOBILE_SYS_PROMPT_ASK_USER_MCP
+from prompt import (
+    MAI_DESKTOP_SYS_PROMPT,
+    MAI_DESKTOP_SYS_PROMPT_ASK_USER_MCP,
+    MAI_DESKTOP_SYS_PROMPT_SIMPLE,
+    MAI_DESKTOP_SYS_PROMPT_CN,
+)
 from unified_memory import TrajStep
 from utils import pil_to_base64, safe_pil_to_bytes
 
@@ -79,7 +85,10 @@ def parse_tagged_text(text: str) -> Dict[str, Any]:
         text = "<thinking>" + text
 
     # Define regex pattern with non-greedy matching
-    pattern = r"<thinking>(.*?)</thinking>.*?<tool_call>(.*?)</tool_call>"
+    # Model outputs: <thinking>...</thinking>\n<invoke>\n{json}\n</invoke>
+    # But sometimes model outputs: <thinking>...</thinking>\n</invoke>\n{json}\n</invoke> (wrong opening tag)
+    # Use </?invoke> to match either <invoke> or </invoke>
+    pattern = r"<thinking>(.*?)</thinking>.*?</?invoke>(.*?)</invoke>"
 
     result: Dict[str, Any] = {
         "thinking": None,
@@ -124,9 +133,19 @@ def parse_action_to_structure_output(text: str) -> Dict[str, Any]:
     results = parse_tagged_text(text)
     thinking = results["thinking"]
     tool_call = results["tool_call"]
-    action = tool_call["arguments"]
+
+    # Handle both wrapped and direct action formats
+    # Wrapped: {"name": "desktop_use", "arguments": {"action": "click", ...}}
+    # Direct: {"action": "click", ...}
+    if "arguments" in tool_call:
+        action = tool_call["arguments"]
+    elif "action" in tool_call:
+        action = tool_call
+    else:
+        raise ValueError(f"Invalid tool_call format: {tool_call}")
 
     # Normalize coordinates from SCALE_FACTOR range to [0, 1]
+    # Check if coordinates are already normalized (all values in [0, 1])
     if "coordinate" in action:
         coordinates = action["coordinate"]
         if len(coordinates) == 2:
@@ -139,10 +158,13 @@ def parse_action_to_structure_output(text: str) -> Dict[str, Any]:
             raise ValueError(
                 f"Invalid coordinate format: expected 2 or 4 values, got {len(coordinates)}"
             )
-        point_x = point_x / SCALE_FACTOR
-        point_y = point_y / SCALE_FACTOR
+        # Only normalize if coordinates are in SCALE_FACTOR range (> 1)
+        # If already normalized (in [0, 1]), keep as is
+        if point_x > 1 or point_y > 1:
+            point_x = point_x / SCALE_FACTOR
+            point_y = point_y / SCALE_FACTOR
         action["coordinate"] = [point_x, point_y]
-    
+
     if "start_coordinate" in action:
         coordinates = action["start_coordinate"]
         if len(coordinates) == 2:
@@ -155,10 +177,12 @@ def parse_action_to_structure_output(text: str) -> Dict[str, Any]:
             raise ValueError(
                 f"Invalid coordinate format: expected 2 or 4 values, got {len(coordinates)}"
             )
-        point_x = point_x / SCALE_FACTOR
-        point_y = point_y / SCALE_FACTOR
+        # Only normalize if coordinates are in SCALE_FACTOR range (> 1)
+        if point_x > 1 or point_y > 1:
+            point_x = point_x / SCALE_FACTOR
+            point_y = point_y / SCALE_FACTOR
         action["start_coordinate"] = [point_x, point_y]
-    
+
     if "end_coordinate" in action:
         coordinates = action["end_coordinate"]
         if len(coordinates) == 2:
@@ -171,8 +195,10 @@ def parse_action_to_structure_output(text: str) -> Dict[str, Any]:
             raise ValueError(
                 f"Invalid coordinate format: expected 2 or 4 values, got {len(coordinates)}"
             )
-        point_x = point_x / SCALE_FACTOR
-        point_y = point_y / SCALE_FACTOR
+        # Only normalize if coordinates are in SCALE_FACTOR range (> 1)
+        if point_x > 1 or point_y > 1:
+            point_x = point_x / SCALE_FACTOR
+            point_y = point_y / SCALE_FACTOR
         action["end_coordinate"] = [point_x, point_y]
 
     return {
@@ -181,12 +207,12 @@ def parse_action_to_structure_output(text: str) -> Dict[str, Any]:
     }
 
 
-class MAIUINaivigationAgent(BaseAgent):
+class MAIDesktopNavigationAgent(BaseAgent):
     """
-    Mobile automation agent using vision-language models.
+    Desktop automation agent using vision-language models.
 
     This agent processes screenshots and natural language instructions to
-    generate GUI actions for mobile device automation.
+    generate GUI actions for Windows desktop automation.
 
     Attributes:
         llm_base_url: Base URL for the LLM API endpoint.
@@ -203,7 +229,7 @@ class MAIUINaivigationAgent(BaseAgent):
         mcp_tools: Optional[List[Dict[str, Any]]] = None,
     ):
         """
-        Initialize the MAIMobileAgent.
+        Initialize the MAIDesktopNavigationAgent.
 
         Args:
             llm_base_url: Base URL for the LLM API endpoint.
@@ -241,12 +267,40 @@ class MAIUINaivigationAgent(BaseAgent):
             api_key="empty",
         )
 
+        # Initialize log file
+        from datetime import datetime
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file = log_dir / f"agent_{timestamp}.log"
+
+        # Write initial log info
+        self._save_log("=" * 60)
+        self._save_log(f"MAI-UI Desktop Agent Session - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self._save_log(f"Model: {model_name}")
+        self._save_log(f"API: {llm_base_url}")
+        self._save_log(f"Config: {runtime_conf}")
+        self._save_log("=" * 60)
+
         # Extract frequently used config values
         self.temperature = self.runtime_conf["temperature"]
         self.top_k = self.runtime_conf["top_k"]
         self.top_p = self.runtime_conf["top_p"]
         self.max_tokens = self.runtime_conf["max_tokens"]
         self.history_n = self.runtime_conf["history_n"]
+
+    def _save_log(self, message: str) -> None:
+        """
+        Save detailed log message to log file.
+
+        Args:
+            message: Log message to save.
+        """
+        try:
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(message + "\n")
+        except Exception:
+            pass  # Silently ignore log errors
 
     @property
     def system_prompt(self) -> str:
@@ -260,8 +314,9 @@ class MAIUINaivigationAgent(BaseAgent):
             mcp_tools_str = "\n".join(
                 [json.dumps(tool, ensure_ascii=False) for tool in self.mcp_tools]
             )
-            return MAI_MOBILE_SYS_PROMPT_ASK_USER_MCP.render(tools=mcp_tools_str)
-        return MAI_MOBILE_SYS_PROMPT
+            return MAI_DESKTOP_SYS_PROMPT_ASK_USER_MCP.render(tools=mcp_tools_str)
+        # Use Chinese prompt for better Chinese user experience
+        return MAI_DESKTOP_SYS_PROMPT_CN
 
     @property
     def history_responses(self) -> List[str]:
@@ -299,15 +354,18 @@ class MAIUINaivigationAgent(BaseAgent):
                 ]
 
             tool_call_dict = {
-                "name": "mobile_use",
+                "name": "desktop_use",
                 "arguments": action_json,
             }
             tool_call_json = json.dumps(tool_call_dict, separators=(",", ":"))
+            # Skip empty thinking to prevent propagation of empty tags
+            thinking_content = thinking if thinking else "(proceeding with action)"
             history_responses.append(
-                f"<thinking>\n{thinking}\n</thinking>\n<tool_call>\n{tool_call_json}\n</tool_call>"
+                f"<thinking>\n{thinking_content}\n</thinking>\n<invoke>\n{tool_call_json}\n</invoke>"
             )
 
         return history_responses
+
 
     def mem2response(self, step: TrajStep) -> str:
         thinking = step.thought
@@ -318,28 +376,38 @@ class MAIUINaivigationAgent(BaseAgent):
 
         action_json = copy.deepcopy(structured_action.get("action_json", {}))
 
-        # Convert normalized coordinates back to SCALE_FACTOR range
+        # Convert normalized coordinates to SCALE_FACTOR range for model output
+        # Use a heuristic: if coordinates are small (< 1.5), they're normalized and need scaling
+        def convert_coord(coord_list):
+            if len(coord_list) == 2:
+                x, y = coord_list
+                # Check if already in SCALE_FACTOR range (if values > 1.5, assume already scaled)
+                if x < 1.5 and y < 1.5:
+                    return [int(x * SCALE_FACTOR), int(y * SCALE_FACTOR)]
+                return [int(x), int(y)]
+            elif len(coord_list) == 4:
+                x1, y1, x2, y2 = coord_list
+                if x1 < 1.5 and y1 < 1.5:
+                    return [int(x1 * SCALE_FACTOR), int(y1 * SCALE_FACTOR),
+                            int(x2 * SCALE_FACTOR), int(y2 * SCALE_FACTOR)]
+                return [int(x1), int(y1), int(x2), int(y2)]
+            return coord_list
+
         if "coordinate" in action_json:
-            coordinates = action_json.get("coordinate", [])
-            if len(coordinates) == 2:
-                point_x, point_y = coordinates
-            elif len(coordinates) == 4:
-                x1, y1, x2, y2 = coordinates
-                point_x = (x1 + x2) / 2
-                point_y = (y1 + y2) / 2
-            else:
-                raise ValueError(f"Invalid coordinate format: expected 2 or 4 values, got {len(coordinates)}")
-            action_json["coordinate"] = [
-                int(point_x * SCALE_FACTOR),
-                int(point_y * SCALE_FACTOR),
-            ]
+            action_json["coordinate"] = convert_coord(action_json["coordinate"])
+        if "start_coordinate" in action_json:
+            action_json["start_coordinate"] = convert_coord(action_json["start_coordinate"])[:2]
+        if "end_coordinate" in action_json:
+            action_json["end_coordinate"] = convert_coord(action_json["end_coordinate"])[:2]
 
         tool_call_dict = {
-            "name": "mobile_use",
+            "name": "desktop_use",
             "arguments": action_json,
         }
         tool_call_json = json.dumps(tool_call_dict, separators=(",", ":"))
-        return f"<thinking>\n{thinking}\n</thinking>\n<tool_call>\n{tool_call_json}\n</tool_call>"
+        # Skip empty thinking to prevent propagation of empty tags
+        thinking_content = thinking if thinking else "(proceeding with action)"
+        return f"<thinking>\n{thinking_content}\n</thinking>\n<invoke>\n{tool_call_json}\n</invoke>"
 
     def mem2ask_user_response(self, step: TrajStep) -> str:
         return step.ask_user_response
@@ -347,50 +415,32 @@ class MAIUINaivigationAgent(BaseAgent):
     def mem2mcp_response(self, step: TrajStep) -> str:
         return step.mcp_response
 
+    def mem2execution_result(self, step: TrajStep) -> str:
+        """Get execution result/conclusion from a trajectory step."""
+        return step.conclusion
+
     def _prepare_images(self, screenshot_bytes: bytes) -> List[Image.Image]:
         """
-        Prepare image list including history and current screenshot.
+        Prepare current screenshot as PIL Image.
 
         Args:
             screenshot_bytes: Current screenshot as bytes.
 
         Returns:
-            List of PIL Images (history + current).
+            List containing single PIL Image (current screenshot only).
         """
-        # Calculate how many history images to include
-        if len(self.history_images) > 0:
-            max_history = min(len(self.history_images), self.history_n - 1)
-            recent_history = self.history_images[-max_history:] if max_history > 0 else []
+        # Convert bytes to PIL Image
+        if isinstance(screenshot_bytes, bytes):
+            image = Image.open(BytesIO(screenshot_bytes))
+        elif isinstance(screenshot_bytes, Image.Image):
+            image = screenshot_bytes
         else:
-            recent_history = []
+            raise TypeError(f"Expected bytes or PIL Image, got {type(screenshot_bytes)}")
 
-        # Add current image bytes
-        recent_history.append(screenshot_bytes)
+        if image.mode != "RGB":
+            image = image.convert("RGB")
 
-        # Normalize input type
-        if isinstance(recent_history, bytes):
-            recent_history = [recent_history]
-        elif isinstance(recent_history, np.ndarray):
-            recent_history = list(recent_history)
-        elif not isinstance(recent_history, list):
-            raise TypeError(f"Unidentified images type: {type(recent_history)}")
-
-        # Convert all images to PIL format
-        images = []
-        for image in recent_history:
-            if isinstance(image, bytes):
-                image = Image.open(BytesIO(image))
-            elif isinstance(image, Image.Image):
-                pass
-            else:
-                raise TypeError(f"Expected bytes or PIL Image, got {type(image)}")
-
-            if image.mode != "RGB":
-                image = image.convert("RGB")
-
-            images.append(image)
-
-        return images
+        return [image]
 
     def _build_messages(
         self,
@@ -402,7 +452,7 @@ class MAIUINaivigationAgent(BaseAgent):
 
         Args:
             instruction: Task instruction from user.
-            images: List of prepared images.
+            images: List containing single current screenshot image.
         Returns:
             List of message dictionaries for the API.
         """
@@ -417,74 +467,46 @@ class MAIUINaivigationAgent(BaseAgent):
             },
         ]
 
-        image_num = 0
-        # history_responses = self.history_responses
+        # Add history (assistant responses, execution results, etc.)
+        for step in self.traj_memory.steps:
+            # Add the assistant response (thinking + action)
+            history_response = self.mem2response(step)
+            messages.append({
+                "role": "assistant",
+                "content": [{"type": "text", "text": history_response}],
+            })
 
-        if len(self.traj_memory.steps) > 0:
-            # Only the last (history_n - 1) history responses need images,
-            start_image_idx = max(0, len(self.traj_memory.steps) - (self.history_n - 1))
-            
-            for history_idx, step in enumerate(self.traj_memory.steps):
-                # Only include images for the last (history_n - 1) history responses
-                should_include_image = (history_idx >= start_image_idx)
-                
-                if should_include_image:
-                    # Add image before the assistant response
-                    if image_num < len(images) - 1:
-                        cur_image = images[image_num]
-                        encoded_string = pil_to_base64(cur_image)
-                        messages.append({
-                            "role": "user",
-                            "content": [{
-                                "type": "image_url",
-                                "image_url": {"url": f"data:image/png;base64,{encoded_string}"},
-                            }],
-                        })
-                    image_num += 1
-                
-                # Always add the assistant response (regardless of whether an image is included)
-                history_response = self.mem2response(step)
-                messages.append({
-                    "role": "assistant",
-                    "content": [{"type": "text", "text": history_response}],
-                })
-
-                # Add ask_user_response or mcp_response if present
-                ask_user_response = self.mem2ask_user_response(step)
-                if ask_user_response:
-                    messages.append({
-                        "role": "user",
-                        "content": [{"type": "text", "text": ask_user_response}],
-                    })
-                mcp_response = self.mem2mcp_response(step)
-                if mcp_response:
-                    messages.append({
-                        "role": "user",
-                        "content": [{"type": "text", "text": mcp_response}],
-                    })
-
-            # Add current image (last one in images list)
-            if image_num < len(images):
-                cur_image = images[image_num]
-                encoded_string = pil_to_base64(cur_image)
+            # Add ask_user_response or mcp_response if present
+            ask_user_response = self.mem2ask_user_response(step)
+            if ask_user_response:
                 messages.append({
                     "role": "user",
-                    "content": [{
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{encoded_string}"},
-                    }],
+                    "content": [{"type": "text", "text": ask_user_response}],
                 })
-        else:
-            # No history, just add the current image
-            cur_image = images[0]
-            encoded_string = pil_to_base64(cur_image)
-            messages.append({
-                "role": "user",
-                "content": [{
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{encoded_string}"},
-                }],
-            })
+            mcp_response = self.mem2mcp_response(step)
+            if mcp_response:
+                messages.append({
+                    "role": "user",
+                    "content": [{"type": "text", "text": mcp_response}],
+                })
+            # Add execution result if present (feedback from action execution)
+            execution_result = self.mem2execution_result(step)
+            if execution_result:
+                messages.append({
+                    "role": "user",
+                    "content": [{"type": "text", "text": f"[EXECUTION RESULT]: {execution_result}"}],
+                })
+
+        # Add current screenshot (only one image - the current desktop state)
+        cur_image = images[0]
+        encoded_string = pil_to_base64(cur_image)
+        messages.append({
+            "role": "user",
+            "content": [{
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{encoded_string}"},
+            }],
+        })
 
         return messages
 
@@ -503,6 +525,7 @@ class MAIUINaivigationAgent(BaseAgent):
                 - screenshot: PIL Image or bytes of current screen
                 - ask_user_response: Optional response from asking user
                 - mcp_response: Optional response from MCP tools
+                - execution_result: Optional result from previous action execution (feedback)
         Returns:
             Tuple of (prediction_text, action_dict) where:
                 - prediction_text: Raw model response or error message
@@ -511,6 +534,12 @@ class MAIUINaivigationAgent(BaseAgent):
         # Set task goal if not already set
         if not self.traj_memory.task_goal:
             self.traj_memory.task_goal = instruction
+
+        # Log step info
+        step_num = len(self.traj_memory.steps)
+        self._save_log(f"\n{'='*60}")
+        self._save_log(f"Step {step_num}: {instruction}")
+        self._save_log(f"{'='*60}")
 
         # Process screenshot
         screenshot_pil = obs["screenshot"]
@@ -530,7 +559,8 @@ class MAIUINaivigationAgent(BaseAgent):
         for attempt in range(max_retries):
             try:
                 messages_print = mask_image_urls_for_logging(messages)
-                print(f"Messages (attempt {attempt + 1}):\n{messages_print}")
+                self._save_log(f"\nMessages (attempt {attempt + 1}):\n{messages_print}")
+                print(f"  → Calling model...", end="", flush=True)
 
                 response = self.llm.chat.completions.create(
                     model=self.model_name,
@@ -544,36 +574,82 @@ class MAIUINaivigationAgent(BaseAgent):
                     seed=42,
                 )
                 prediction = response.choices[0].message.content.strip()
-                print(f"Raw response:\n{prediction}")
+                self._save_log(f"Raw response:\n{prediction}\n")
 
                 # Parse response
                 parsed_response = parse_action_to_structure_output(prediction)
                 thinking = parsed_response["thinking"]
                 action_json = parsed_response["action_json"]
-                print(f"Parsed response:\n{parsed_response}")
+                self._save_log(f"Parsed response:\n{parsed_response}\n")
+                print(f" ✓")
+
+                # 重复动作检测 - 防止AI无限循环执行相同动作
+                if len(self.traj_memory.steps) > 0:
+                    last_step = self.traj_memory.steps[-1]
+                    last_action = last_step.action
+                    current_action_type = action_json.get("action", "")
+
+                    # 对于连续的type/click/launch动作，检查是否重复
+                    if last_action and current_action_type == last_action.get("action", ""):
+                        is_duplicate = False
+                        if current_action_type == "click":
+                            last_coord = last_action.get("coordinate", [])
+                            curr_coord = action_json.get("coordinate", [])
+                            if len(last_coord) == 2 and len(curr_coord) == 2:
+                                dist = ((last_coord[0] - curr_coord[0])**2 + (last_coord[1] - curr_coord[1])**2)**0.5
+                                if dist < 0.03:  # 小于3%屏幕距离视为重复
+                                    is_duplicate = True
+                        elif current_action_type == "type":
+                            last_text = last_action.get("text", "")
+                            curr_text = action_json.get("text", "")
+                            # 简单比较：如果文本完全相同就是重复
+                            if last_text == curr_text and last_text:
+                                is_duplicate = True
+                        elif current_action_type == "launch":
+                            last_text = last_action.get("text", "").lower()
+                            curr_text = action_json.get("text", "").lower()
+                            if last_text == curr_text:
+                                is_duplicate = True
+
+                        if is_duplicate:
+                            self._save_log(f"⚠️ DUPLICATE ACTION BLOCKED: {current_action_type}\n")
+                            print(f" ✓")
+                            print(f"  ⛔ 重复动作被阻止：上一步已执行过相同动作")
+                            # 返回提示动作，告诉AI要前进
+                            action_json = {"action": "wait", "duration": 2.0}
+                            prediction = f"<thinking>{thinking}</thinking> ⛔ 重复动作被阻止"
+                            break
+
                 break
 
             except Exception as e:
-                print(f"Error on attempt {attempt + 1}: {e}")
-                traceback.print_exc()
+                self._save_log(f"Error on attempt {attempt + 1}: {e}\n{traceback.format_exc()}\n")
+                print(f" ✗")
+                print(f"  Error: {e}")
                 prediction = None
                 action_json = None
 
         # Return error if all retries failed
         if prediction is None or action_json is None:
+            self._save_log("Max retry attempts reached, returning error flag.\n")
             print("Max retry attempts reached, returning error flag.")
             return "llm client error", {"action": None}
 
         # Create and store trajectory step
+        # Get execution result from obs (feedback from previous action execution)
+        execution_result = obs.get("execution_result", "")
+        if not execution_result:
+            execution_result = ""  # Empty if no execution result provided
+
         traj_step = TrajStep(
             screenshot=screenshot_pil,
             accessibility_tree=obs.get("accessibility_tree"),
             prediction=prediction,
             action=action_json,
-            conclusion="",
+            conclusion=execution_result,  # Store execution result as conclusion
             thought=thinking,
             step_index=len(self.traj_memory.steps),
-            agent_type="MAIMobileAgent",
+            agent_type="MAIDesktopAgent",
             model_name=self.model_name,
             screenshot_bytes=screenshot_bytes,
             structured_action={"action_json": action_json},
