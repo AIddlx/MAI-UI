@@ -125,4 +125,4 @@ python src\mai_desktop_http_mcp_server.py
 
 扫码加入 QQ 群交流：
 
-![QQ群二维码](assets/img/qrcode_1770133173054.jpg)
+<img src="assets/img/qrcode_1770133173054.jpg" width="200"/>
